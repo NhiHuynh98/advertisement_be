@@ -1,0 +1,12 @@
+{
+  "dependencies": {
+    "playwright": "^1.50.1",
+    "playwright-extra": "^4.3.6",
+    "playwright-extra-plugin-stealth": "^0.0.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.50.1",
+    "@types/node": "^22.13.5"
+  },
+  "scripts": {}
+}
