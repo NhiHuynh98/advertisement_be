@@ -66,6 +66,75 @@ def get_database_connection():
         )
     return conn
 
+class AddLinkRequest(BaseModel):
+    links: str
+    location: object
+
+@app.post("/add-links")
+async def add_links(data: AddLinkRequest):
+    try:
+        values_dict = data.model_dump()
+        links = values_dict.get("links")
+        location = values_dict.get("location")
+        location_short = location.get("value")
+        location_long = location.get("label")
+
+        conn = get_database_connection()
+
+        with conn.cursor() as cursor:
+            # Fetch all matching records (prevents "Unread result found")
+            cursor.execute("SELECT links FROM locationGroup WHERE location_short = %s;", (location_short,))
+            rows = cursor.fetchall()  # ✅ Use fetchall() to consume all results
+
+            # Extract the first row if exists
+            existing_link = json.loads(rows[0][0]) if rows else []  # ✅ Safe extraction
+            print("existing_link", existing_link)
+
+            # Process new links
+            new_links = links.split("\n")
+            print("sss", new_links)
+
+            updatedLink = list(set(existing_link + new_links)) if existing_link else new_links
+
+            if rows:
+                cursor.execute(
+                    "UPDATE locationGroup SET links = %s WHERE location_short = %s", 
+                    (json.dumps(updatedLink), location_short)
+                )
+            else:
+                cursor.execute(
+                    "INSERT INTO locationGroup (location_short, location_long, links) VALUES (%s, %s, %s)", 
+                    (location_short, location_long, json.dumps(new_links))
+                )
+
+            conn.commit() 
+
+    except mysql.connector.Error as err:
+        print(f"Database Error: {err}")
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.get("/get-location")
+async def get_location():
+    try:
+        conn = get_database_connection()
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT location_short, location_long FROM locationGroup;")
+            rows = cursor.fetchall()
+
+            unique_locations = list({(row[0], row[1]) for row in rows})
+
+            locations = [{"value": short, "label": long} for short, long in unique_locations]
+
+            return {"result": locations}
+
+    except mysql.connector.Error as err:
+        print(f"Database Error: {err}")
+    finally:
+        cursor.close()
+        conn.close()
+
 @app.get("/get-group-url")
 def get_group_url_with_location(location: str = "hcm"):
     try:
@@ -408,3 +477,12 @@ if __name__ == "__main__":
 # INSERT INTO locationGroup (location, links) 
 # VALUES ('New York', '["https://group1.com", "https://group2.com", "https://group3.com"]');
 
+# UPDATE locationGroup 
+# SET location_short = location, 
+#     location_long = 
+#         CASE 
+#             WHEN location = 'hcm' THEN 'Ho Chi Minh'
+#             WHEN location = 'hn' THEN 'Ha Noi'
+#             WHEN location = 'dn' THEN 'Da Nang'
+#             ELSE location
+#         END;
