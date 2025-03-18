@@ -335,10 +335,9 @@ IMAGE_PATH = [
 ]
 
 class PostRequest(BaseModel):
-    page: str
     messages: str
-    page_url: str
-    page: str
+    page_url: Any
+    page: int
     filePayload: List[Any]
 
 def process_input(input_string):
@@ -356,9 +355,8 @@ def auto_post_facebook(data: PostRequest):
     POST_MESSAGE = values_dict.get("messages", "Default Text")
     IMAGE_PAYLOAD = values_dict.get("filePayload", None)
     page_url = values_dict.get("page_url", None)
-    page = values_dict.get("page", None)
-
-    GROUP_URLS = paginate(process_input(page_url), 2)
+    page_count = values_dict.get("page", None)
+    GROUP_URLS = paginate(page_url, page_count)
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=False)  # Keep False for debugging
